@@ -36,7 +36,10 @@ export const UploadFilesForm = () => {
   });
 
   const onSubmit: SubmitHandler<Schema> = (input) => {
-    startTransition(async () => onUpload(input.files));
+    startTransition(async () => {
+      onUpload(input.files);
+      form.reset();
+    });
   };
 
   return (
