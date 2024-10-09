@@ -1,0 +1,3 @@
+{
+  "455dc53c7a4e862ad7eae9d548940d18bab78cc6": "mutation MultipleUploadFilesMutation($files: [Upload!]!) { multipleUploadFilesMutation(files: $files) { data { file_size file_type filename url } message status_code } }"
+}
