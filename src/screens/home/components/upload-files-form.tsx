@@ -13,9 +13,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { FileUploader } from "@/components/ui/extension/file-uploader";
+import { FileUploader } from "@/components/customs/file-uploader";
 import { Loader2 } from "lucide-react";
-import { useUploadFile } from "@/hooks/use-upload-file";
+import { useUploadFile } from "@/hooks";
 
 const schema = z.object({
   files: z
@@ -27,13 +27,15 @@ type Schema = z.infer<typeof schema>;
 
 export const UploadFilesForm = () => {
   const [pending, startTransition] = React.useTransition();
-  const { onUpload } = useUploadFile();
+  const { onUpload, progresses, uploadedFiles, isUploading } = useUploadFile();
   const form = useForm<Schema>({
     resolver: zodResolver(schema),
     defaultValues: {
       files: [],
     },
   });
+
+  console.log({ progresses, uploadedFiles, isUploading });
 
   const onSubmit: SubmitHandler<Schema> = (input) => {
     startTransition(async () => {
@@ -60,7 +62,7 @@ export const UploadFilesForm = () => {
                     value={field.value}
                     onValueChange={field.onChange}
                     maxFileCount={4}
-                    maxSize={10 * 1024 * 1024}
+                    maxSize={4 * 1024 * 1024}
                   />
                 </FormControl>
                 <FormMessage />

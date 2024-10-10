@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Cross2Icon, FileTextIcon, UploadIcon } from "@radix-ui/react-icons";
+import { Cross2Icon, FileTextIcon } from "@radix-ui/react-icons";
 import Dropzone, {
   type DropzoneProps,
   type FileRejection,
@@ -10,11 +10,13 @@ import Dropzone, {
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
-import { useControllableState } from "@/hooks/use-controllable-state";
+import { useControllableState } from "@/hooks";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatBytes } from "@/lib";
+import { CloudUpload } from "lucide-react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 interface FileUploaderProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
@@ -114,19 +116,33 @@ export function FileUploader(props: FileUploaderProps) {
     prop: valueProp,
     onChange: onValueChange,
   });
+  const [autoAnimateRef] = useAutoAnimate();
 
   const onDrop = React.useCallback(
     (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+      // Check file count limit
       if (!multiple && maxFileCount === 1 && acceptedFiles.length > 1) {
         toast.error("Cannot upload more than 1 file at a time");
         return;
       }
 
-      if ((files?.length ?? 0) + acceptedFiles.length > maxFileCount) {
-        toast.error(`Cannot upload more than ${maxFileCount} files`);
-        return;
+      // Handle rejected files
+      if (rejectedFiles.length > 0) {
+        for (let i = 0; i < rejectedFiles.length; i++) {
+          if (rejectedFiles[i].errors[0]?.code === "file-too-large") {
+            toast.error(
+              `File is too large. Max size is ${formatBytes(maxSize)}`
+            );
+            break;
+          }
+          if (rejectedFiles[i].errors[0]?.message) {
+            toast.error(rejectedFiles[i].errors[0].message);
+            break;
+          }
+        }
       }
 
+      // Process accepted files
       const newFiles = acceptedFiles.map((file) =>
         Object.assign(file, {
           preview: URL.createObjectURL(file),
@@ -135,34 +151,30 @@ export function FileUploader(props: FileUploaderProps) {
 
       const updatedFiles = files ? [...files, ...newFiles] : newFiles;
 
-      setFiles(updatedFiles);
-
-      if (rejectedFiles.length > 0) {
-        rejectedFiles.forEach(({ file }) => {
-          toast.error(`File ${file.name} was rejected`);
-        });
+      // Check if the total file count exceeds maxFileCount
+      if (updatedFiles.length > maxFileCount) {
+        toast.error(`Cannot upload more than ${maxFileCount} files`);
+        return;
       }
 
-      if (
-        onUpload &&
-        updatedFiles.length > 0 &&
-        updatedFiles.length <= maxFileCount
-      ) {
+      setFiles(updatedFiles);
+
+      // Trigger the upload function if there are files and file count is within the limit
+      if (onUpload && updatedFiles.length > 0) {
         const target =
-          updatedFiles.length > 0 ? `${updatedFiles.length} files` : `file`;
+          updatedFiles.length > 1 ? `${updatedFiles.length} files` : `file`;
 
         toast.promise(onUpload(updatedFiles), {
           loading: `Uploading ${target}...`,
           success: () => {
             setFiles([]);
-            return `${target} uploaded`;
+            return `${target} uploaded successfully`;
           },
           error: `Failed to upload ${target}`,
         });
       }
     },
-
-    [files, maxFileCount, multiple, onUpload, setFiles]
+    [files, maxFileCount, multiple, onUpload, setFiles, maxSize]
   );
 
   function onRemove(index: number) {
@@ -201,7 +213,7 @@ export function FileUploader(props: FileUploaderProps) {
           <div
             {...getRootProps()}
             className={cn(
-              "group relative grid h-52 w-full cursor-pointer place-items-center rounded-lg border-2 border-dashed border-muted-foreground/25 px-5 py-2.5 text-center transition hover:bg-muted/25",
+              "group relative grid h-42 w-full cursor-pointer place-items-center rounded-lg border-2 border-dashed border-muted-foreground/25 px-5 py-2.5 text-center transition hover:bg-muted/25",
               "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               isDragActive && "border-muted-foreground/50",
               isDisabled && "pointer-events-none opacity-60",
@@ -213,8 +225,8 @@ export function FileUploader(props: FileUploaderProps) {
             {isDragActive ? (
               <div className="flex flex-col items-center justify-center gap-4 sm:px-5">
                 <div className="rounded-full border border-dashed p-3">
-                  <UploadIcon
-                    className="size-7 text-muted-foreground"
+                  <CloudUpload
+                    className="size-8 text-muted-foreground"
                     aria-hidden="true"
                   />
                 </div>
@@ -225,8 +237,8 @@ export function FileUploader(props: FileUploaderProps) {
             ) : (
               <div className="flex flex-col items-center justify-center gap-4 sm:px-5">
                 <div className="rounded-full border border-dashed p-3">
-                  <UploadIcon
-                    className="size-7 text-muted-foreground"
+                  <CloudUpload
+                    className="size-8 text-muted-foreground"
                     aria-hidden="true"
                   />
                 </div>
@@ -251,7 +263,7 @@ export function FileUploader(props: FileUploaderProps) {
       </Dropzone>
       {files?.length ? (
         <ScrollArea className="h-fit w-full px-3">
-          <div className="flex max-h-48 flex-col gap-4">
+          <div className="flex max-h-48 flex-col gap-4" ref={autoAnimateRef}>
             {files?.map((file, index) => (
               <FileCard
                 key={index}
